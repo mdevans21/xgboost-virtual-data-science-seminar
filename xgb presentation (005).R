@@ -41,12 +41,12 @@ rel3 = c(1, 1, 1)
 
 # To test non-linear characteristics we introduce a numerical variable setting
 # the relativity using a polynomial.
-
+set.seed(1)
 num4 = runif(1, min = -1, max = 1)
 rel4 = 2 * (num4 ^ 2) + 1
 
 # Generating a data table of random numerical variables
-
+set.seed(2)
 num4.rel <- data.table(num4 = runif(number.of.rows, min = -1, max = 1))
 num4.rel[, rel4 := 2 * (num4 ^ 2) + 1]
 
@@ -67,7 +67,7 @@ rel23 = matrix(c(1, 1, 1, 1, 1, 1, 1, 1.7, 1),
                )
 
 # Creating a full data table, randomly assigning factor levels
-
+set.seed(3)
 data.gen <- data.table(index = 1:number.of.rows,
                        "cat1" = sample(cat1, number.of.rows, replace = TRUE),
                        "cat2" = sample(cat2, number.of.rows, replace = TRUE),
@@ -93,15 +93,16 @@ shape <- function(x1, x2, x3, x4) {
 scale <- 1
 
 # We now simulate a Poisson for claims frequency
-
+set.seed(4)
 data.gen[, freq := rpois(n = 1, lambda = 1.2), by = index]
 data.gen[, loss.mean := shape(x1 = cat1, x2 = cat2, x3 = cat3, x4 = num4), by = index]
+set.seed(5)
 data.gen[, combined := sum(rgamma(n = freq, shape = loss.mean, scale = scale)), by = index]
 
 # A proportion of the generated records are assigned to the train dataset
 
 split.ratio <- 0.7
-
+set.seed(6)
 data.gen[, split := sample(c("train", "test"), size = number.of.rows, replace = TRUE, prob = c(split.ratio, 1 - split.ratio))]
 data.gen
 
@@ -137,9 +138,9 @@ xgb.data.test <- xgb.DMatrix(data = data.matrix(data.ohe[data.gen$split == "test
 watchlist <- list(train = xgb.data.train, test = xgb.data.test)
 
 # Running a simple XGBoost model
-
+set.seed(10)
 xgb.model <- xgb.train(data = xgb.data.train,
-                       nrounds = 200,
+                       nrounds = 100,
                        max.depth = 5,
                        eta = 0.3,
                        gamma = 0,
@@ -198,7 +199,7 @@ tune.grid <- expand.grid(nrounds = c(10, 15, 25, 50),
                          )
 
 # Run all combinations, returning the best model under cross-fold validation
-
+set.seed(11)
 xgb.model.tuned <- train(x = xgb.data.train,
                          y = data.labels[data.gen$split == "train", ]$combined,
                          watchlist = watchlist,
@@ -223,6 +224,15 @@ xgb.model.tuned$bestTune
 # caret package
 
 f_print_rmse <- function(model, data = data.gen[split == "test"]) {
+  
+  p <-  predict(model, data, type="response")
+  print(paste("Root Mean Square Error is:", round(RMSE(p, data.gen[split == "test"]$combined), 3), sep = " "))
+  
+}
+
+# Utility function to print RMSE for XGBoost. Model parameter different from GLM/GAM.
+
+f_print_rmse_xgb <- function(model, data = data.gen[split == "test"]) {
   
   p <- predict(model, data)
   print(paste("Root Mean Square Error is:", round(RMSE(p, data.gen[split == "test"]$combined), 3), sep = " "))
@@ -291,21 +301,12 @@ gam <- mgcv::gam(formula = combined ~ cat1 + cat2 + cat3 +
 gam %>% summary
 gam %>% f_print_rmse
 
-# GAM challenger with identity link function
-gam <- mgcv::gam(formula = combined ~ cat1 + cat2 + cat3 + 
-                   cat2*cat3 + 
-                   s(num4),
-                 data = data.gen[split == "train"],
-                 family = mgcv::Tweedie(p=1.75, 
-                                        link = power(1)))        # Note link function changed
-gam %>% summary
-gam %>% f_print_rmse
 
 # XGBoost simple model
-xgb.model %>% f_print_rmse(data = xgb.data.test)
+xgb.model %>% f_print_rmse_xgb(data = xgb.data.test)
 
 # XGBoost model with grid-search
-xgb.model.tuned %>% f_print_rmse(data = xgb.data.test)
+xgb.model.tuned %>% f_print_rmse_xgb(data = xgb.data.test)
 
 # Citations
 
@@ -314,7 +315,3 @@ citation("glm")
 citation("xgboost")
 citation("mgcv")
 citation("tidyverse")
-
-
-
-
