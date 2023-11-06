@@ -200,7 +200,7 @@ tune.grid <- expand.grid(nrounds = c(10, 15, 25, 50),
 
 # Run all combinations, returning the best model under cross-fold validation
 set.seed(11)
-xgb.model.tuned <- train(x = xgb.data.train,
+xgb.model.tuned <- train(x = data.matrix(data.ohe[data.gen$split == "train", ],
                          y = data.labels[data.gen$split == "train", ]$combined,
                          watchlist = watchlist,
                          method = "xgbTree",
@@ -306,7 +306,7 @@ gam %>% f_print_rmse
 xgb.model %>% f_print_rmse_xgb(data = xgb.data.test)
 
 # XGBoost model with grid-search
-xgb.model.tuned %>% f_print_rmse_xgb(data = xgb.data.test)
+xgb.model.tuned %>% f_print_rmse_xgb(data = data.matrix(data.ohe[data.gen$split == "test", ]))
 
 # Citations
 
